@@ -1,6 +1,6 @@
 import asyncio
-from typing import List, Dict, Any, Optional, Union, Tuple
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional, Union, Tuple, TypeVar, Type
+from pydantic import BaseModel, Field, ConfigDict
 
 __all__ = [
     "create_database_connection",
@@ -21,7 +21,14 @@ except ImportError:
     asyncpg = None
 
 
+# Define type variables for database connections
+MySQLConnection = TypeVar('MySQLConnection', bound=Any)
+PostgreSQLConnection = TypeVar('PostgreSQLConnection', bound=Any)
+
+
 class QueryResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     success: bool
     message: str
     rowcount: Optional[int] = None
@@ -29,9 +36,11 @@ class QueryResult(BaseModel):
 
 
 class ConnectionResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     success: bool
     message: str
-    connection: Optional[Any] = None
+    connection: Union[MySQLConnection, PostgreSQLConnection, None] = None
     db_type: Optional[str] = None
 
 
@@ -129,13 +138,29 @@ async def create_database_connection(
         )
 
 
-async def execute_query(connection_result: ConnectionResult, query: str, params: Optional[Tuple] = None) -> QueryResult:
+async def execute_query(
+    host: str,
+    user: str,
+    password: str,
+    database: str,
+    query: str,
+    port: int = None,
+    db_type: str = 'mysql',
+    params: Optional[Tuple[str | bool | int | float | None, ...]] = None,
+    **kwargs
+) -> QueryResult:
     """Execute a query that modifies the database (INSERT, UPDATE, DELETE).
     
     Args:
-        connection_result (ConnectionResult): Connection result from create_database_connection
+        host (str): Database server host
+        user (str): Database username
+        password (str): Database password
+        database (str): Database name
         query (str): SQL query to execute
+        port (int, optional): Database server port. Defaults to None.
+        db_type (str, optional): Database type ('mysql' or 'postgres'). Defaults to 'mysql'.
         params (Optional[Tuple]): Parameters for the query
+        **kwargs: Additional connection parameters
         
     Returns:
         QueryResult: A model containing the result with the following fields:
@@ -143,6 +168,17 @@ async def execute_query(connection_result: ConnectionResult, query: str, params:
             - message: Description of the operation result
             - rowcount: Number of affected rows if available
     """
+    # Create connection
+    connection_result = await create_database_connection(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        db_type=db_type,
+        **kwargs
+    )
+    
     if not connection_result.success or connection_result.connection is None:
         return QueryResult(
             success=False,
@@ -206,11 +242,25 @@ async def execute_query(connection_result: ConnectionResult, query: str, params:
         )
 
 
-async def execute_read_query(connection_result: ConnectionResult, query: str, params: Optional[Tuple] = None) -> QueryResult:
+async def execute_read_query(
+    host: str,
+    username: str,
+    password: str,
+    database: str,
+    db_type: str = 'mysql',
+    port: Optional[int] = None,
+    query: str = "",
+    params: Optional[Tuple[str | bool | int | float | None, ...]] = None
+) -> QueryResult:
     """Execute a SELECT query and return the results.
     
     Args:
-        connection_result (ConnectionResult): Connection result from create_database_connection
+        host (str): Database server host
+        username (str): Database username
+        password (str): Database password
+        database (str): Database name
+        db_type (str, optional): Database type ('mysql' or 'postgres'). Defaults to 'mysql'.
+        port (Optional[int], optional): Database server port. Defaults to None.
         query (str): SQL query to execute
         params (Optional[Tuple]): Parameters for the query
         
@@ -220,6 +270,16 @@ async def execute_read_query(connection_result: ConnectionResult, query: str, pa
             - message: Description of the operation result
             - data: List of dictionaries containing the query results
     """
+    # Create database connection
+    connection_result = await create_database_connection(
+        host=host,
+        username=username,
+        password=password,
+        database=database,
+        db_type=db_type,
+        port=port
+    )
+    
     if not connection_result.success or connection_result.connection is None:
         return QueryResult(
             success=False,
@@ -277,7 +337,9 @@ async def execute_read_query(connection_result: ConnectionResult, query: str, pa
         )
 
 
-async def close_database_connection(connection_result: ConnectionResult) -> QueryResult:
+async def close_database_connection(
+    connection_result: ConnectionResult
+) -> QueryResult:
     """Close the database connection.
     
     Args:
@@ -318,5 +380,3 @@ async def close_database_connection(connection_result: ConnectionResult) -> Quer
             success=False,
             message=f"Error closing {db_type} connection: {str(e)}"
         )
-
-

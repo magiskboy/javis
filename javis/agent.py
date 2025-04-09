@@ -55,10 +55,10 @@ def create_agent() -> Agent:
         # redis.hash_get_all,
 
         # Database
-        database.create_database_connection,
+        # database.create_database_connection,
         database.execute_query,
         database.execute_read_query,
-        database.close_database_connection,
+        # database.close_database_connection,
     ])
 
     return agent
