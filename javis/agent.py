@@ -33,6 +33,7 @@ def create_agent() -> Agent:
 
         # Internet search
         internet_search.search,
+        internet_search.view_website,
 
         # Redis
         # redis.create_redis_connection,
@@ -56,8 +57,8 @@ def create_agent() -> Agent:
 
         # Database
         # database.create_database_connection,
-        database.execute_query,
-        database.execute_read_query,
+        # database.execute_query,
+        # database.execute_read_query,
         # database.close_database_connection,
     ])
 
