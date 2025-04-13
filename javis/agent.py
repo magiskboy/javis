@@ -36,7 +36,8 @@ def create_agent() -> Agent:
         internet_search.view_website,
 
         # Search resume
-        resume.get_top_match_resume,
+        resume.find_top_match_experiences,
+        resume.find_top_match_skills,
     ])
 
     return agent
