@@ -1,11 +1,11 @@
 from pydantic_ai.providers.google_gla import GoogleGLAProvider
 from pydantic_ai.models.gemini import GeminiModel
 
-GEMINI_API_KEY = "AIzaSyAVjdXvHzmAz2SlUTv53hNRNwHTHF8Kqg0"
+from javis import settings
 
-google_provider = GoogleGLAProvider(api_key=GEMINI_API_KEY)
+google_provider = GoogleGLAProvider(api_key=settings.GEMINI_API_KEY)
 
-gemini = GeminiModel(model_name='gemini-2.0-flash-exp', provider=google_provider)
+gemini = GeminiModel(model_name=settings.GEMINI_MODEL, provider=google_provider)
 
 __all__ = [
     "gemini",
