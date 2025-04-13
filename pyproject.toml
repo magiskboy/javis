@@ -11,6 +11,7 @@ dependencies = [
     "duckduckgo-search>=8.0.0",
     "google-genai>=1.10.0",
     "httpx>=0.28.1",
+    "ipython>=9.1.0",
     "langchain>=0.3.23",
     "langchain-community>=0.3.21",
     "logfire>=3.12.0",

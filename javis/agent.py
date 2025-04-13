@@ -1,7 +1,7 @@
 from javis.models.gemini import gemini
 from pydantic_ai import Agent
 from typing import List, Callable
-from javis.tools import filesystem, python, internet_search, redis, database
+from javis.tools import filesystem, python, internet_search, resume
 
 
 __all__ = [
@@ -35,31 +35,8 @@ def create_agent() -> Agent:
         internet_search.search,
         internet_search.view_website,
 
-        # Redis
-        # redis.create_redis_connection,
-        # redis.execute_command,
-        # redis.close_redis_connection,
-        # redis.key_exists,
-        # redis.get_all_keys,
-        # redis.get_value,
-        # redis.set_value,
-        # redis.delete_key,
-        # redis.flush_db,
-        # redis.get_key_type,
-        # redis.get_ttl,
-        # redis.set_ttl,
-        # redis.list_push,
-        # redis.list_pop,
-        # redis.list_range,
-        # redis.hash_set,
-        # redis.hash_get,
-        # redis.hash_get_all,
-
-        # Database
-        # database.create_database_connection,
-        # database.execute_query,
-        # database.execute_read_query,
-        # database.close_database_connection,
+        # Search resume
+        resume.get_top_match_resume,
     ])
 
     return agent

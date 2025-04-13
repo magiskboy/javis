@@ -22,9 +22,13 @@ DB_NAME = os.getenv("DB_NAME", "javis")
 
 # Configure root logger with basic settings
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=logging.ERROR,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     stream=sys.stdout, 
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
+for logger_name in logging.root.manager.loggerDict:
+    if logger_name.startswith('javis.'):
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(LOG_LEVEL)

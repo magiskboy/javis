@@ -9,6 +9,7 @@ from typing import List
 
 from google import genai
 from javis import settings
+from javis.helper import get_database_connection
 from pydantic import BaseModel
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
 
@@ -216,13 +217,7 @@ async def main():
     resume_folder = os.path.join(settings.DATA_DIR, "resume")
 
     # Initialize dependencies
-    db = await asyncpg.connect(
-        host=settings.DB_HOST,
-        port=settings.DB_PORT,
-        user=settings.DB_USER,
-        password=settings.DB_PASSWORD,
-        database=settings.DB_NAME
-    )
+    db = await get_database_connection()
     logger = logging.getLogger(__file__)
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     deps = Deps(

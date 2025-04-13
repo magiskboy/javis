@@ -14,12 +14,18 @@ async def main():
                 user_input,
                 message_history=message_history,
             )
+            for message in result.new_messages()[1:]:
+                print('javis:', "".join(map(
+                    lambda part: part.content, 
+                    filter(lambda part: part.part_kind == 'text', message.parts)
+                )))
+
             if len(result.all_messages()) < 5:
                 message_history = result.all_messages()
             else:
                 message_history = result.all_messages()[-5:]
 
-            print('javis: ', result.data)
+            # print('javis: ', result.data)
 
         except KeyboardInterrupt:
             break
