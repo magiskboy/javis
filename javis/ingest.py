@@ -85,6 +85,9 @@ class Start(BaseNode[State, Deps, str]):
     filename: str
 
     async def run(self, ctx: GraphRunContext[State, Deps]) -> "Upload":
+        logger = ctx.deps.logger
+        logger.info(f"Starting ingestion for {self.filename}")
+
         db = ctx.deps.db
         await db.execute('''
         CREATE EXTENSION IF NOT EXISTS vector;
@@ -116,6 +119,9 @@ class Upload(BaseNode[State, Deps]):
     filename: str
 
     async def run(self, ctx: GraphRunContext[State, Deps]) -> "Parse":
+        logger = ctx.deps.logger
+        logger.info(f"Uploading...")
+
         client = ctx.deps.client
         file = client.files.upload(
             file=self.filename,
@@ -130,10 +136,12 @@ class Upload(BaseNode[State, Deps]):
 @dataclass
 class Parse(BaseNode[State, Deps]):
     async def run(self, ctx: GraphRunContext[State, Deps]) -> "Embed":
-        model = settings.GEMINI_MODEL
+        logger = ctx.deps.logger
+        logger.info(f"Parsing...")
+
         client = ctx.deps.client
         response = client.models.generate_content(
-            model=model,
+            model=settings.GEMINI_MODEL,
             contents=[ctx.state.uploaded_file],
             config=dict(
                 response_mime_type="application/json",
@@ -147,6 +155,9 @@ class Parse(BaseNode[State, Deps]):
 @dataclass
 class Embed(BaseNode[State, Deps]):
     async def run(self, ctx: GraphRunContext[State, Deps]) -> "Store":
+        logger = ctx.deps.logger
+        logger.info(f"Embedding...")
+
         resume = ctx.state.parsed_data
 
         skills_content = f"skills: {','.join([f'{skill.name}:{skill.level}' for skill in resume.skills])}"
@@ -168,12 +179,15 @@ class Embed(BaseNode[State, Deps]):
 class Store(BaseNode[State, Deps]):
     async def run(self, ctx: GraphRunContext[State, Deps]) -> End:
         logger = ctx.deps.logger
+
+        logger.info(f"Storing...")
+
         logger.info(f"Storing resume: {ctx.state.parsed_data}")
-        db = ctx.deps.db
 
         resume = ctx.state.parsed_data
         resume_data = resume.model_dump()
 
+        db = ctx.deps.db
         await db.execute("""
             INSERT INTO resumes (
                 name, email, phone, address, birth_date, educations, experiences, projects, skills, certifications, languages, vector_skills, vector_experience
@@ -233,10 +247,13 @@ async def main():
         Store,
     ])
 
+    # Run the graph
+    for filename in os.listdir(resume_folder):
+        if not filename.endswith('.pdf'):
+            continue
 
-    filename = os.path.join(resume_folder, 'Đỗ Trọng Hiếu.pdf')
-    await graph.run(Start(filename), deps=deps, state=state)
-
+        filename = os.path.join(resume_folder, filename)
+        await graph.run(Start(filename), deps=deps, state=state)
 
 if __name__ == "__main__":
     asyncio.run(main())
