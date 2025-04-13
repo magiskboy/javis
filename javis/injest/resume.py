@@ -213,9 +213,7 @@ class Store(BaseNode[State, Deps]):
         return End(data=None)
 
 
-async def main():
-    resume_folder = os.path.join(settings.DATA_DIR, "resume")
-
+async def main(folder: str):
     # Initialize dependencies
     db = await get_database_connection()
     logger = logging.getLogger(__file__)
@@ -243,12 +241,9 @@ async def main():
     ])
 
     # Run the graph
-    for filename in os.listdir(resume_folder):
+    for filename in os.listdir(folder):
         if not filename.endswith('.pdf'):
             continue
 
-        filename = os.path.join(resume_folder, filename)
+        filename = os.path.join(folder, filename)
         await graph.run(Start(filename), deps=deps, state=state)
-
-if __name__ == "__main__":
-    asyncio.run(main())
