@@ -19,6 +19,8 @@ DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 DB_NAME = os.getenv("DB_NAME", "javis")
 
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
 SYSTEM_PROMPT = """
 You are an intelligent and reliable HR Assistant working for a Human Resources professional. Your role is to help with various HR-related tasks, including:
 1.	Candidate Evaluation:
