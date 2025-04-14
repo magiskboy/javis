@@ -7,14 +7,14 @@ from javis.injest.resume import ResumeModel
 logger = logging.getLogger(__name__)
 
 
-async def find_top_match_skills(skills: list[str] = None, k: int = 5) -> list[ResumeModel]:
+async def find_top_match_skills(skills: list[str], k: int = 5) -> list[ResumeModel]:
     """Retrieves resumes that best match the given skills and experience.
     
     This function searches the database for resumes that have the highest
     match rate with the provided skills and experience requirements.
     
     Args:
-        skills (list[str], optional): A list of strings representing required technical skills. Defaults to None.
+        skills (list[str]): A list of strings representing required technical skills.
         k (int, optional): The number of top matches to return. Defaults to 5.
         
     Returns:
@@ -119,4 +119,3 @@ async def find_top_match_experiences(experience_keywords: list[str], k: int = 5)
         raise ConnectionError(f"Failed to query resume database: {str(e)}")
     finally:
         await db.close()
-

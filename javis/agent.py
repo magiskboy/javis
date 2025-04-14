@@ -1,8 +1,10 @@
 from javis.models.gemini import gemini
 from pydantic_ai import Agent
 from typing import List, Callable
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.agent import AgentRunResult
 from javis.tools import filesystem, python, internet_search, resume
-
+from javis import settings
 
 __all__ = [
     "create_agent",
@@ -10,6 +12,7 @@ __all__ = [
 
 def create_agent() -> Agent:
     agent = Agent(
+        system_prompt=settings.SYSTEM_PROMPT,
         model=gemini,
     )
 
@@ -55,3 +58,19 @@ def register_tools(agent: Agent, tools: List[Callable]):
 
     for tool in tools:
         add_tool_plain(tool)
+
+
+async def process_prompt(prompt: str, agent: Agent, message_history: list[ModelMessage] = None) -> tuple[str, AgentRunResult]:
+    result = await agent.run(
+        prompt,
+        message_history=message_history,
+    )
+
+    message = ''
+    for message in result.new_messages()[1:]:
+        message = "".join(map(
+            lambda part: part.content, 
+            filter(lambda part: part.part_kind == 'text' and len(part.content) > 0, message.parts)
+        ))
+
+    return message, result

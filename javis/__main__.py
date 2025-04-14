@@ -1,6 +1,7 @@
 import asyncio
 from javis.agent import create_agent
 from javis.telegram_bot import TelegramBot
+from javis.agent import create_agent, process_prompt
 
 
 async def main():
@@ -12,29 +13,13 @@ async def main():
         try:
             user_input = input("> ")
 
-            result = await agent.run(
-                user_input,
-                message_history=message_history,
-            )
-            for message in result.new_messages()[1:]:
-                print(
-                    "javis:",
-                    "".join(
-                        map(
-                            lambda part: part.content,
-                            filter(
-                                lambda part: part.part_kind == "text", message.parts
-                            ),
-                        )
-                    ),
-                )
+            content, result = await process_prompt(user_input, agent, message_history)
+            print('javis:', content)
 
             if len(result.all_messages()) < 5:
                 message_history = result.all_messages()
             else:
                 message_history = result.all_messages()[-5:]
-
-            # print('javis: ', result.data)
 
         except KeyboardInterrupt:
             break
