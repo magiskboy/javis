@@ -3,7 +3,7 @@ from pydantic_ai import Agent
 from typing import List, Callable
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.agent import AgentRunResult
-from javis.tools import filesystem, python, internet_search, resume
+from javis.tools import internet_search, resume
 from javis import settings
 
 __all__ = [
@@ -17,23 +17,6 @@ def create_agent() -> Agent:
     )
 
     register_tools(agent, [
-
-        # Filesystem
-        filesystem.get_file_details,
-        filesystem.create_file,
-        filesystem.update_file,
-        filesystem.delete_file,
-        filesystem.create_folder,
-        filesystem.delete_folder,
-        filesystem.read_folder,
-        filesystem.copy_file,
-        filesystem.move_file,
-        filesystem.open_file,
-        filesystem.read_file,
-
-        # Python
-        python.run_python_code,
-
         # Internet search
         internet_search.search,
         internet_search.view_website,
@@ -41,6 +24,10 @@ def create_agent() -> Agent:
         # Search resume
         resume.find_top_match_experiences,
         resume.find_top_match_skills,
+        resume.get_create_interview_schedule_instructions,
+        resume.get_employees_for_interview,
+        resume.send_message_via_telegram,
+        resume.create_interview_schedule,
     ])
 
     return agent
