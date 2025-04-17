@@ -32,7 +32,7 @@ class MessageStore:
             # CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
         )
 
-    async def add_messages(self, user_id: str, messages: list[dict]) -> None:
+    async def add_messages(, user_id: str, messages: list[dict]) -> None:
         """Add messages for a specific user to the database.
 
         Args:
@@ -81,11 +81,8 @@ class MessageStore:
         ORDER BY created_at ASC
         """
         rows = await self.connection.fetch(query, user_id)
-        if rows:
-            messages = json.loads(rows[0][1])
-            return ModelMessagesTypeAdapter.validate_python(messages)
-        else:
-            return []
+        messages = json.loads(rows[0][1])
+        return ModelMessagesTypeAdapter.validate_python(messages)
 
     async def close(self):
         """Close the database connection.

@@ -30,7 +30,7 @@ def run_local():
             try:
                 user_input = input("> ")
 
-                content = await process_prompt(user_input, agent, "1")
+                content, result = await process_prompt(user_input, agent, "1")
                 print("javis:", content)
 
             except KeyboardInterrupt:

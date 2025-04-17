@@ -1,11 +1,11 @@
 from javis.models.gemini import gemini
 from pydantic_ai import Agent
 from typing import List, Callable
-from javis.tools import internet_search, resume, calendar, gmail
+from javis.tools import internet_search, resume
 from javis import settings
 from javis.tools.messages import MessageStore
 from pydantic_core import to_jsonable_python
-from javis.tools.telegram import send_telegram_message
+
 
 __all__ = [
     "create_agent",
@@ -31,14 +31,6 @@ def create_agent() -> Agent:
             resume.get_employees_for_interview,
             resume.send_message_via_telegram,
             resume.create_interview_schedule,
-            # Calendar
-            calendar.create_calendar_event,
-            calendar.delete_calendar_event,
-            calendar.get_calendar_events,
-            # Telegram
-            send_telegram_message,
-            # Gmail
-            gmail.send_email,
         ],
     )
 
@@ -69,7 +61,7 @@ async def process_prompt(prompt: str, agent: Agent, user_id: str):
         user_id: Optional user ID to store messages for
 
     Returns:
-        str: The processed message
+        tuple[str, AgentRunResult]: The processed message and agent result
     """
 
     # Initialize message store and get existing messages if user_id provided
@@ -86,7 +78,7 @@ async def process_prompt(prompt: str, agent: Agent, user_id: str):
     finally:
         await messages_store.close()
 
-    return result_response(result)
+    return result_response(result), result
 
 
 def result_response(result):
