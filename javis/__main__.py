@@ -20,22 +20,26 @@ class Message:
 
 cli = click.Group()
 
-
 @cli.command()
 def run_local():
     async def run():
         agent = create_agent()
+        message_history = []
 
         while True:
             try:
                 user_input = input("> ")
 
-                content, result = await process_prompt(user_input, agent, "1")
-                print("javis:", content)
+                content, result = await process_prompt(user_input, agent, message_history)
+                print('javis:', content)
+
+                if len(result.all_messages()) < 5:
+                    message_history = result.all_messages()
+                else:
+                    message_history = result.all_messages()[-5:]
 
             except KeyboardInterrupt:
                 break
-
     asyncio.run(run())
 
 
