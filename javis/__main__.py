@@ -1,44 +1,49 @@
 import asyncio
+from dataclasses import dataclass
+
+from telegram import Update
+from telegram.ext import ContextTypes
+from javis import settings
 from javis.agent import create_agent
 from javis.telegram_bot import TelegramBot
+from javis.agent import create_agent, process_prompt
+import click
 
 
-async def main():
-    telegram_bot = TelegramBot()
-    agent = create_agent()
-    message_history = []
+@dataclass
+class Message:
+    session_id: str
+    user_id: str
+    content: str
+    date: str
 
-    while True:
-        try:
-            user_input = input("> ")
 
-            result = await agent.run(
-                user_input,
-                message_history=message_history,
-            )
-            for message in result.new_messages()[1:]:
-                print(
-                    "javis:",
-                    "".join(
-                        map(
-                            lambda part: part.content,
-                            filter(
-                                lambda part: part.part_kind == "text", message.parts
-                            ),
-                        )
-                    ),
-                )
+cli = click.Group()
 
-            if len(result.all_messages()) < 5:
-                message_history = result.all_messages()
-            else:
-                message_history = result.all_messages()[-5:]
 
-            # print('javis: ', result.data)
+@cli.command()
+def run_local():
+    async def run():
+        agent = create_agent()
 
-        except KeyboardInterrupt:
-            break
+        while True:
+            try:
+                user_input = input("> ")
+
+                content, result = await process_prompt(user_input, agent, "1")
+                print("javis:", content)
+
+            except KeyboardInterrupt:
+                break
+
+    asyncio.run(run())
+
+
+@cli.command()
+def run_telebot():
+    telegram_bot = TelegramBot(settings.TELEGRAM_BOT_TOKEN)
+    telegram_bot.run()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    cli()
