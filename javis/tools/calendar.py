@@ -129,6 +129,7 @@ async def get_calendar_events(
     to_date: Optional[str] = None,
     days: Optional[int] = None,
     timezone: str = "Asia/Ho_Chi_Minh",
+    user_email: Optional[str] = None,
 ) -> dict:
     """Get a list of calendar events within a specified time range.
 
@@ -141,19 +142,21 @@ async def get_calendar_events(
         to_date: End date/datetime in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
         days: Number of days to fetch events from today
         timezone: Timezone for the events (default: Asia/Ho_Chi_Minh)
+        user_email: Email of the specific user whose calendar to access
 
     Returns:
         dict: List of events with their details or error information
 
     Examples:
-        # Get events between two dates
+        # Get events between two dates for a specific user
         >>> await get_calendar_events(
         ...     from_date="2024-04-20T00:00:00",
-        ...     to_date="2024-04-21T00:00:00"
+        ...     to_date="2024-04-21T00:00:00",
+        ...     user_email="user@example.com"
         ... )
 
-        # Get events for next 7 days
-        >>> await get_calendar_events(days=7)
+        # Get events for next 7 days for a specific user
+        >>> await get_calendar_events(days=7, user_email="user@example.com")
     """
 
     try:
@@ -176,13 +179,16 @@ async def get_calendar_events(
 
         logger.info(f"Getting calendar events from {start_dt} to {end_dt} with timezone {timezone}")
 
+        # Prepare API call parameters
+        calendar_id = "primary" if not user_email else user_email
+
         # Call the Calendar API
         events_result = (
             service.events()
             .list(
-                calendarId="primary",
-                timeMin=start_dt.isoformat() + "Z",  # 'Z' indicates UTC time
-                timeMax=end_dt.isoformat() + "Z",
+                calendarId=calendar_id,
+                timeMin=start_dt.astimezone().isoformat(),  # Convert to timezone-aware
+                timeMax=end_dt.astimezone().isoformat(),  # Convert to timezone-aware
                 singleEvents=True,
                 orderBy="startTime",
                 timeZone=timezone,
@@ -193,7 +199,12 @@ async def get_calendar_events(
         events = events_result.get("items", [])
 
         if not events:
-            return {"message": "No events found.", "events": [], "status": "success"}
+            return {
+                "message": "No events found.", 
+                "events": [], 
+                "status": "success",
+                "calendar": calendar_id
+            }
 
         # Format the events
         formatted_events = []
@@ -217,6 +228,7 @@ async def get_calendar_events(
         return {
             "status": "success",
             "events": formatted_events,
+            "calendar": calendar_id,
             "period": {
                 "start": start_dt.isoformat(),
                 "end": end_dt.isoformat(),
