@@ -17,29 +17,29 @@ services:
     networks:
       - javis
 
-  redis:
-    image: redis/redis-stack:latest
-    ports:
-      - "6379:6379"
-      - "8001:8001"
-    volumes:
-      - ./.data/redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - javis
+  # redis:
+  #   image: redis/redis-stack:latest
+  #   ports:
+  #     - "6379:6379"
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./.data/redis:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - javis
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./.data/ollama:/root/.ollama
-    networks:
-      - javis
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./.data/ollama:/root/.ollama
+  #   networks:
+  #     - javis
 
 networks:
   javis:
