@@ -12,6 +12,7 @@ from javis.tools.messages import MessageStore
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 class TelegramBot:
     def __init__(self, token: str):
