@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from googleapiclient.discovery import build
@@ -5,6 +6,8 @@ from pydantic import BaseModel
 
 from javis.helper import get_google_crendential
 
+
+logger = logging.getLogger(__name__)
 
 class CalendarEvent(BaseModel):
     """Model for calendar event details"""
@@ -62,6 +65,9 @@ async def create_calendar_event(
         ...     attendees=["john@example.com", "jane@example.com"]
         ... )
     """
+
+    logger.info(f"Creating calendar event: {summary} from {start_time} to {end_time} with timezone {timezone} and attendees {attendees}")
+
     try:
         # Parse the datetime strings
         start_dt = datetime.fromisoformat(start_time)
@@ -149,6 +155,7 @@ async def get_calendar_events(
         # Get events for next 7 days
         >>> await get_calendar_events(days=7)
     """
+
     try:
         # Get calendar service
         service = get_calendar_service()
@@ -165,9 +172,9 @@ async def get_calendar_events(
             start_dt = datetime.fromisoformat(from_date)
             end_dt = datetime.fromisoformat(to_date)
         else:
-            start_dt = now
-            end_dt = now
             raise ValueError("Either provide (from_date, to_date) or days parameter")
+
+        logger.info(f"Getting calendar events from {start_dt} to {end_dt} with timezone {timezone}")
 
         # Call the Calendar API
         events_result = (
