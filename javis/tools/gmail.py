@@ -2,55 +2,13 @@ from typing import List, Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import base64
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-<<<<<<< Updated upstream
-import pickle
-from pathlib import Path
 
-# Get the current directory
-CURRENT_DIR = Path(__file__).parent
-CREDENTIALS_PATH = CURRENT_DIR / "credentials.json"
-TOKEN_PATH = CURRENT_DIR / "token.pickle"
-
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
-=======
 from javis.helper import get_google_crendential
->>>>>>> Stashed changes
 
 
 def get_gmail_service():
-    """Initialize and return the Gmail API service.
-
-    Returns:
-        Resource: Gmail API service
-    """
-    creds = None
-    if TOKEN_PATH.exists():
-        with open(TOKEN_PATH, "rb") as token:
-            creds = pickle.load(token)
-
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not CREDENTIALS_PATH.exists():
-                raise FileNotFoundError(
-                    f"Credentials file not found at: {CREDENTIALS_PATH}"
-                )
-
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-
-        # Save the credentials for the next run
-        with open(TOKEN_PATH, "wb") as token:
-            pickle.dump(creds, token)
-
+    creds = get_google_crendential()
     return build("gmail", "v1", credentials=creds)
 
 

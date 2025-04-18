@@ -3,7 +3,7 @@ import logging
 
 from pydantic import BaseModel
 from javis.helper import embed_contents, get_database_connection
-from javis.injest.resume import ResumeModel
+from javis.ingest.resume import ResumeModel
 
 
 logger = logging.getLogger(__name__)

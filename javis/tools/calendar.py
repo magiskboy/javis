@@ -1,20 +1,9 @@
-import os
-from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List
 from googleapiclient.discovery import build
 from pydantic import BaseModel
-from javis import settings
-import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 
-# Get the current directory (where calendar.py is located)
-CURRENT_DIR = Path(__file__).parent
-CREDENTIALS_PATH = CURRENT_DIR / "credentials.json"
-TOKEN_PATH = CURRENT_DIR / "token.pickle"
-
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+from javis.helper import get_google_crendential
 
 
 class CalendarEvent(BaseModel):
@@ -35,27 +24,7 @@ def get_calendar_service():
     Returns:
         Resource: Google Calendar API service
     """
-    creds = None
-    if TOKEN_PATH.exists():
-        with open(TOKEN_PATH, "rb") as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not CREDENTIALS_PATH.exists():
-                raise FileNotFoundError(
-                    f"Credentials file not found at: {CREDENTIALS_PATH}"
-                )
-
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open(TOKEN_PATH, "wb") as token:
-            pickle.dump(creds, token)
+    creds = get_google_crendential()
 
     service = build("calendar", "v3", credentials=creds)
     return service

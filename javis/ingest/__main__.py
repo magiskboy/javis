@@ -1,7 +1,7 @@
 import click
 import asyncio
 
-from javis.injest import resume
+from javis.ingest import resume
 
 
 cli = click.Group()
