@@ -1,8 +1,6 @@
 import asyncio
 from dataclasses import dataclass
 
-from telegram import Update
-from telegram.ext import ContextTypes
 from javis import settings
 from javis.agent import create_agent
 from javis.helper import embed_contents, get_database_connection
