@@ -125,7 +125,8 @@ async def send_email(
             # Store the thread ID for monitoring replies
             thread_id = sent_message.get("threadId")
             from javis.tools.email_monitor_task import add_thread_to_monitor
-
+            print(f"Adding thread to monitor: {thread_id}")
+            print(f"to_email: {to_email}")
             await add_thread_to_monitor(thread_id, to_email)
 
             return {
@@ -140,7 +141,9 @@ async def send_email(
             }
 
         except Exception as e:
+            print(f"Error sending email: {e}")
             return {"status": "failed", "error": f"Failed to send email: {str(e)}"}
 
     except Exception as e:
+        print(f"Error sending email: {e}")
         return {"status": "failed", "error": str(e)}

@@ -66,7 +66,7 @@ def register_tools(agent: Agent, tools: List[Callable]):
         add_tool_plain(tool)
 
 
-async def process_prompt(prompt: str, agent: Agent, user_id: str):
+async def process_prompt(prompt: str, agent: Agent, user_id: str = None):
     """Process a prompt with the agent and store chat history.
 
     Args:
@@ -79,18 +79,19 @@ async def process_prompt(prompt: str, agent: Agent, user_id: str):
     """
 
     # Initialize message store and get existing messages if user_id provided
-    messages_store = MessageStore()
-    await messages_store.initialize()
-
-    try:
+    print(f"Processing prompt: {prompt}")
+    print(f"User ID: {user_id}")
+    if user_id:
+        messages_store = MessageStore()
+        await messages_store.initialize()
         messages = await messages_store.get_messages(user_id)
         result = await agent.run(prompt, message_history=messages)
         messages = result.all_messages()
         as_python_objects = to_jsonable_python(messages)
         await messages_store.add_messages(user_id, as_python_objects)
-
-    finally:
         await messages_store.close()
+    else:
+        result = await agent.run(prompt, message_history=[])
 
     return result_response(result)
 
