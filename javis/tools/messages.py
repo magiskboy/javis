@@ -1,6 +1,7 @@
 from typing import List
 import json
-from javis.helper import get_database_connection
+from javis import settings
+from javis.helper import embed_contents, get_database_connection
 
 
 class MessageStore:
@@ -21,11 +22,13 @@ class MessageStore:
         """
         self.connection = await get_database_connection()
         await self.connection.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
                 user_id VARCHAR(255) NOT NULL,
+                for_user_id VARCHAR(255) NOT NULL,
                 messages JSONB NOT NULL,
+                content_embeddings vector({settings.VECTOR_DIMENSION}) NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -48,11 +51,23 @@ class MessageStore:
                 "Database connection not initialized. Call initialize() first."
             )
 
+        user_message, bot_message = messages[0], messages[-1]
+
+        user_content = "\n".join([part["content"] for part in user_message["parts"] if part['part_kind'] == 'user-prompt'])
+        bot_content = "\n".join([part["content"] for part in bot_message["parts"] if part['part_kind'] == 'assistant-prompt'])
+        [user_content_embedding, bot_content_embedding] = embed_contents([user_content, bot_content])
+
         query = """
-        INSERT INTO messages (user_id, messages) 
-        VALUES ($1, $2)
+        INSERT INTO messages (user_id, for_user_id, messages, content_embeddings) 
+        VALUES ($1, $2, $3, $4)
         """
-        await self.connection.execute(query, user_id, json.dumps(messages))
+        await self.connection.execute(query, user_id, '-1', json.dumps(user_message), json.dumps(user_content_embedding))
+
+        query = """
+        INSERT INTO messages (user_id, for_user_id, messages, content_embeddings) 
+        VALUES ($1, $2, $3, $4)
+        """
+        await self.connection.execute(query, '-1', user_id, json.dumps(bot_message), json.dumps(bot_content_embedding))
 
     async def get_messages(self, user_id: str) -> List[any]:
         from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -81,9 +96,11 @@ class MessageStore:
         ORDER BY created_at ASC
         """
         rows = await self.connection.fetch(query, user_id)
+        messages = []
         if rows:
-            messages = json.loads(rows[0][1])
-            return ModelMessagesTypeAdapter.validate_python(messages)
+            for row in rows:
+                messages.append(json.loads(row[1]))
+            return ModelMessagesTypeAdapter.validate_python(messages)[:1]
         else:
             return []
 

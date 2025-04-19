@@ -111,7 +111,7 @@ async def create_calendar_event(
         )
 
         # Return relevant event details
-        return {
+        response = {
             "event_id": created_event["id"],
             "html_link": created_event["htmlLink"],
             "summary": created_event["summary"],
@@ -119,6 +119,12 @@ async def create_calendar_event(
             "end_time": created_event["end"]["dateTime"],
             "attendees": [a["email"] for a in created_event.get("attendees", [])],
         }
+
+        return f'''
+        I have created a calendar event with the following details:
+        {response}
+        Noted: respond user with html_link of event
+        '''
 
     except Exception as e:
         return {"error": str(e), "status": "failed"}
