@@ -14,6 +14,7 @@ import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from javis.tools.gmail import send_email
+from javis.agent import process_prompt, create_agent
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,7 @@ async def remove_expired_threads() -> None:
     finally:
         await conn.close()
 
+
 async def check_email_replies(thread_id: str) -> dict:
     """Check for replies in a specific email thread.
 
@@ -278,170 +280,6 @@ HR Team"""
     return await send_email(to_email=to_email, subject=subject, body=body)
 
 
-async def analyze_candidate_response(response_text: str) -> dict:
-    from javis.agent import create_agent, process_prompt
-
-    """Analyze candidate's email response using Gemini AI to determine their intent.
-
-    Args:
-        response_text (str): The candidate's email response text
-
-    Returns:
-        dict: Analysis result containing:
-            - agrees_to_schedule (bool): Whether the candidate agrees to schedule
-            - confirm_datetime (str): Extracted datetime if available (YYYY-MM-DD HH:MM)
-            - confidence_score (float): Confidence in the analysis (0-1)
-            - suggested_action (str): Recommended next action
-            - explanation (str): Explanation of the analysis
-    """
-    agent = create_agent()
-
-    prompt = f"""Analyze the following email response from a job candidate and determine if they are agreeing to schedule an interview.
-                Consider the full context and nuances of their response, not just specific keywords.
-                If they agree to schedule, carefully extract any mentioned date and time preferences.
-
-                Response: {response_text}
-
-                Provide your analysis in the following JSON format:
-                {{
-                    "agrees_to_schedule": true/false,
-                    "confirm_datetime": "YYYY-MM-DD HH:MM" or null,
-                    "confidence_score": 0.0-1.0,
-                    "suggested_action": "schedule_interview" or "notify_hr" or "request_clarification",
-                    "explanation": "Brief explanation of your analysis"
-                }}
-
-                Focus on understanding:
-                1. Overall tone and context
-                2. Any specific date/time preferences mentioned (convert to YYYY-MM-DD HH:MM format)
-                3. Level of enthusiasm
-                4. Any potential concerns raised
-
-                Examples of datetime extraction:
-                - "I can do next Monday at 2pm" → Extract next Monday's date and set time to 14:00
-                - "Tomorrow afternoon at 3" → Extract tomorrow's date and set time to 15:00
-                - "Friday morning" → Extract next Friday's date and set time to 09:00
-                """
-
-    return await process_prompt(prompt, agent)
-
-
-async def process_candidate_reply(
-    reply_content: str, candidate_email: str, hr_telegram_id: str
-) -> dict:
-    """Process a candidate's email reply and take appropriate action.
-
-    Args:
-        reply_content (str): The content of the candidate's reply email
-        candidate_email (str): The candidate's email address
-        hr_telegram_id (str): Telegram ID of the HR person to notify
-
-    Returns:
-        dict: A dictionary containing:
-            - status (str): 'success' or 'error'
-            - action (str, optional): 'scheduled' or 'notified_hr' if successful
-            - calendar_event (dict, optional): Calendar event details if scheduled
-            - telegram_result (dict, optional): Telegram notification result if sent
-            - error (str, optional): Error message if status is 'error'
-            - analysis (dict, optional): AI analysis of the response
-
-    Raises:
-        Exception: If calendar creation or telegram notification fails
-    """
-    try:
-        # Use AI to analyze the candidate's response
-        raw_response = await analyze_candidate_response(reply_content)
-
-        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_response)
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            json_str = raw_response.strip()
-        analysis = json.loads(json_str)
-
-        # If AI is confident the candidate agrees to schedule
-        if (
-            analysis["agrees_to_schedule"]
-            and float(analysis["confidence_score"]) >= 0.5
-        ):
-            # Use the extracted datetime if available, otherwise default to tomorrow
-            if analysis.get("confirm_datetime"):
-                meeting_time = datetime.strptime(
-                    analysis["confirm_datetime"], "%Y-%m-%d %H:%M"
-                )
-            else:
-                meeting_time = datetime.now() + timedelta(days=1)
-                meeting_time = meeting_time.replace(
-                    hour=10, minute=0, second=0, microsecond=0
-                )
-
-            end_time = meeting_time + timedelta(hours=1)
-
-            # Create calendar event
-            calendar_result = await create_calendar_event(
-                summary=f"Interview with {candidate_email}",
-                start_time=meeting_time.isoformat(),
-                end_time=end_time.isoformat(),
-                description=f"Interview session\n\nCandidate Response Analysis:\n{analysis['explanation']}",
-                attendees=[candidate_email],
-                timezone="Asia/Ho_Chi_Minh",
-            )
-
-            if "error" not in calendar_result:
-                # Send confirmation email
-                email_result = await send_confirmation_email(
-                    candidate_email, meeting_time
-                )
-
-                return {
-                    "status": "success",
-                    "action": "scheduled",
-                    "calendar_event": calendar_result,
-                    "email_result": email_result,
-                    "analysis": analysis,
-                }
-            else:
-                return {
-                    "status": "error",
-                    "error": f"Failed to create calendar event: {calendar_result['error']}",
-                    "analysis": analysis,
-                }
-
-        else:  # AI suggests not scheduling or needs clarification
-            # Send follow-up email
-            email_result = await send_followup_email(candidate_email, analysis)
-
-            # Notify HR via Telegram with AI analysis
-            notification = (
-                f"Candidate {candidate_email} has responded to the interview invitation.\n\n"
-                f"Response: {reply_content[:200]}...\n\n"
-                f"AI Analysis:\n"
-                f"- Agrees to Schedule: {analysis['agrees_to_schedule']}\n"
-                f"- Confidence: {analysis['confidence_score']:.2f}\n"
-                f"- Suggested Action: {analysis['suggested_action']}\n"
-                f"- Explanation: {analysis['explanation']}"
-            )
-
-            telegram_result = await send_telegram_message(
-                recipient=hr_telegram_id, message=notification
-            )
-
-            return {
-                "status": "success",
-                "action": "notified_hr",
-                "telegram_result": telegram_result,
-                "email_result": email_result,
-                "analysis": analysis,
-            }
-
-    except Exception as e:
-        logger.error(f"Error processing candidate reply: {str(e)}")
-        return {
-            "status": "error",
-            "error": str(e),
-        }
-
-
 async def check_threads() -> None:
     """Check all monitored threads for new replies.
 
@@ -469,11 +307,47 @@ async def check_threads() -> None:
                     # If this is a new reply (not one we've processed before)
                     if reply_check["message_id"] != thread.last_message_id:
                         # Process the reply
-                        await process_candidate_reply(
-                            reply_content=reply_check["reply_content"],
-                            candidate_email=thread.candidate_email,
-                            hr_telegram_id=thread.hr_telegram_id,
-                        )
+                        candidate_email = thread.candidate_email
+                        rag = f"""
+                        This is the candidate's response from the {candidate_email}:
+                        {reply_check["reply_content"]}
+
+                        And this is instructions to make the right decision:
+
+                        You are a recruitment assistant responsible for reviewing candidate responses regarding their availability for a discussion. Based on the candidate's reply, you need to determine their intent and take the appropriate action as follows:
+
+                        1. If the candidate declines to discuss
+                        (e.g., they say they’re not interested, not available, or politely refuse):
+                        → Send a thank-you email and wish them well for the future.
+
+                        2. If the candidate:
+                        Does not provide a specific time
+                        (e.g., "I'll check my schedule and get back to you", "I'm currently busy", "Maybe in the afternoon but not sure"), or
+
+                        Offers a time slot shorter than 1 hour
+                        (e.g., "I'm free for 15 minutes at 3 PM")
+                        → Send an email requesting the candidate to confirm a specific time slot as soon as possible so that a meeting can be arranged.
+
+                        3. If the candidate:
+                        Provides a clear time window longer than 1 hour
+                        (e.g., "I'm available from 2 PM to 4 PM"), or
+
+                        Provides a start time without specifying duration
+                        (e.g., "I'm free at 10 AM")
+                        → Create a meeting in Google Calendar using the given time (default to 1 hour if no duration is provided), and send a confirmation email to the candidate.
+
+                        Input:
+
+                        The candidate’s natural response (in English or Vietnamese)
+
+                        Output:
+
+                        The appropriate email response according to one of the 3 scenarios above
+
+                        If applicable, include the necessary information to create a Google Calendar event (time, title, description, recipient email)
+                        """
+                        agent = create_agent()
+                        await process_prompt(rag, agent)
 
                         # Update the last processed message ID
                         await update_thread_message_id(

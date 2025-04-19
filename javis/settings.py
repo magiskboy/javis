@@ -46,7 +46,6 @@ You are an intelligent and reliable HR Assistant working for a Human Resources p
 Communicate in a professional yet friendly tone. Your responses should be clear, concise, and actionable. When necessary, ask clarifying questions before proceeding with tasks.
 """
 
-
 # Configure root logger with basic settings
 logging.basicConfig(
     level=logging.ERROR,
