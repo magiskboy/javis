@@ -19,7 +19,9 @@ DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 DB_NAME = os.getenv("DB_NAME", "javis")
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN", "7667260699:AAHtAHrwkRhBZA9xmApJ-R8jNT2XWfnKr5A"
+)
 
 SYSTEM_PROMPT = """
 You are an intelligent and reliable HR Assistant working for a Human Resources professional. Your role is to help with various HR-related tasks, including:
@@ -49,12 +51,12 @@ Communicate in a professional yet friendly tone. Your responses should be clear,
 # Configure root logger with basic settings
 logging.basicConfig(
     level=logging.ERROR,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
-    stream=sys.stdout, 
-    datefmt="%Y-%m-%d %H:%M:%S"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 for logger_name in logging.root.manager.loggerDict:
-    if logger_name.startswith('javis.'):
+    if logger_name.startswith("javis."):
         logger = logging.getLogger(logger_name)
         logger.setLevel(LOG_LEVEL)

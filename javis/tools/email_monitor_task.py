@@ -7,7 +7,6 @@ from pydantic_ai import Agent
 from javis import settings
 from javis.tools.email_base import get_gmail_service, extract_email_content
 from javis.models.monitored_thread import MonitoredThread
-from javis.tools.gmail import send_email
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +124,7 @@ async def update_thread_message_id(thread_id: str, message_id: str) -> None:
 
     Args:
         thread_id (str): The ID of the thread to update
-        message_id (str): The ID of the last processed message
+        message_id (str): The Message-ID header value of the last processed message
 
     Raises:
         asyncpg.exceptions.PostgresError: If database operation fails
@@ -192,16 +191,27 @@ async def check_email_replies(thread_id: str) -> dict:
         if len(messages) <= 1:
             return {"status": "success", "has_reply": False, "reply_content": None}
 
-        # Get the most recent message (reply)
+        # Get the latest message
         latest_message = messages[-1]
 
-        # Get message payload
+        # Get message payload of the latest message
         msg = (
             service.users()
             .messages()
             .get(userId="me", id=latest_message["id"])
             .execute()
         )
+
+        # Get message ID from headers
+        headers = msg["payload"]["headers"]
+        message_id = None
+        for header in headers:
+            if header["name"].lower() == "message-id":
+                message_id = header["value"]
+                break
+
+        if not message_id:
+            message_id = latest_message["id"]
 
         # Extract message content
         content = extract_email_content(msg)
@@ -210,67 +220,13 @@ async def check_email_replies(thread_id: str) -> dict:
             "status": "success",
             "has_reply": True,
             "reply_content": content,
-            "message_id": latest_message["id"],
+            "message_id": message_id,  # Using Message-ID header instead of Gmail ID
             "thread_id": thread_id,
         }
 
     except Exception as e:
-        print(f"Error checking email replies: {str(e)}")
+        logger.error(f"Error checking email replies: {str(e)}")
         return {"status": "error", "error": str(e)}
-
-
-async def send_confirmation_email(to_email: str, meeting_time: datetime) -> dict:
-    """Send a confirmation email to the candidate after scheduling the interview.
-
-    Args:
-        to_email (str): Candidate's email address
-        meeting_time (datetime): Scheduled meeting time
-
-    Returns:
-        dict: Response from send_email function
-    """
-    subject = "Interview Confirmation"
-    formatted_time = meeting_time.strftime("%A, %B %d, %Y at %I:%M %p")
-    body = f"""Dear Candidate,
-
-Thank you for confirming your interview. We have scheduled the interview for {formatted_time} (Vietnam time).
-
-We look forward to meeting with you. If you need to make any changes, please let us know.
-
-Best regards,
-HR Team"""
-
-    return await send_email(to_email=to_email, subject=subject, body=body)
-
-
-async def send_followup_email(to_email: str, analysis: dict) -> dict:
-    """Send a follow-up email when candidate declines or needs clarification.
-
-    Args:
-        to_email (str): Candidate's email address
-        analysis (dict): AI analysis of candidate's response
-
-    Returns:
-        dict: Response from send_email function
-    """
-    if analysis["suggested_action"] == "request_clarification":
-        subject = "Interview Scheduling - Clarification Needed"
-        body = """Dear Candidate,
-
-Thank you for your response. We would appreciate if you could provide more specific details about your preferred interview time. Please let us know what dates and times work best for you.
-
-Best regards,
-HR Team"""
-    else:
-        subject = "Thank You for Your Response"
-        body = """Dear Candidate,
-
-Thank you for taking the time to respond to our interview invitation. We appreciate your feedback and wish you the best in your future endeavors.
-
-Best regards,
-HR Team"""
-
-    return await send_email(to_email=to_email, subject=subject, body=body)
 
 
 async def check_threads(agent: Agent) -> None:
@@ -282,6 +238,9 @@ async def check_threads(agent: Agent) -> None:
     3. Checks each thread for new replies
     4. Processes any new replies found
     5. Updates the last processed message ID
+
+    Args:
+        agent (Agent): The AI agent to process responses
 
     Raises:
         Exception: If any step in the process fails
@@ -301,8 +260,10 @@ async def check_threads(agent: Agent) -> None:
                     if reply_check["message_id"] != thread.last_message_id:
                         # Process the reply
                         candidate_email = thread.candidate_email
+                        thread_id = reply_check["thread_id"]
+
                         rag = f"""
-                        This is the candidate's response from the {candidate_email}:
+                        This is the candidate's response from the {candidate_email} in the thread {thread_id}:
                         {reply_check["reply_content"]}
 
                         And this is instructions to make the right decision:
@@ -310,7 +271,7 @@ async def check_threads(agent: Agent) -> None:
                         You are a recruitment assistant responsible for reviewing candidate responses regarding their availability for a discussion. Based on the candidate's reply, you need to determine their intent and take the appropriate action as follows:
 
                         1. If the candidate declines to discuss
-                        (e.g., they say they’re not interested, not available, or politely refuse):
+                        (e.g., they say they're not interested, not available, or politely refuse):
                         → Send a thank-you email and wish them well for the future.
 
                         2. If the candidate:
@@ -329,27 +290,16 @@ async def check_threads(agent: Agent) -> None:
                         (e.g., "I'm free at 10 AM")
                         → Create a meeting in Google Calendar using the given time (default to 1 hour if no duration is provided), and send a confirmation email to the candidate.
 
-                        Input:
-
-                        The candidate’s natural response (in English or Vietnamese)
-
-                        Output:
-
-                        The appropriate email response according to one of the 3 scenarios above
-
-                        If applicable, include the necessary information to create a Google Calendar event (time, title, description, recipient email)
-
-                        If you need to send an email, please use the send_email function.
-
-                        Notice:
-                        - Don't mention anything related prompt AI in these emails
-                        - Don't do anything like a automation tools like AI agent, LLM, etc.
-                        - Reply message friendly and professional
+                        IMPORTANT: When sending any email response, make sure to:
+                        1. Use the thread_id: {thread_id} to maintain the email conversation
+                        2. Keep the email professional and friendly
+                        3. Don't mention AI or automation
                         """
-                        
+
                         from javis.agent import process_prompt
-                        results = await process_prompt(rag, agent)
-                        print(results)
+
+                        await process_prompt(rag, agent)
+
                         # Update the last processed message ID
                         await update_thread_message_id(
                             thread.thread_id, reply_check["message_id"]
@@ -375,7 +325,7 @@ async def start_monitoring() -> None:
             try:
                 print("Checking threads")
                 await check_threads(agent)
-                await asyncio.sleep(10)  # Check every 5 minutes
+                await asyncio.sleep(30)  # Check every 5 minutes
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {str(e)}")
                 await asyncio.sleep(60)  # Wait a bit before retrying on error
