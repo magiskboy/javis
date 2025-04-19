@@ -1,20 +1,13 @@
 import asyncio
 import logging
-from typing import Dict, List
+from typing import List
 from datetime import datetime, timedelta
 import asyncpg
+from pydantic_ai import Agent
 from javis import settings
 from javis.tools.email_base import get_gmail_service, extract_email_content
-from javis.tools.calendar import create_calendar_event
-from javis.tools.telegram import send_telegram_message
 from javis.models.monitored_thread import MonitoredThread
-import json
-from pydantic import BaseModel, Field
-import re
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from javis.tools.gmail import send_email
-from javis.agent import process_prompt, create_agent
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +273,7 @@ HR Team"""
     return await send_email(to_email=to_email, subject=subject, body=body)
 
 
-async def check_threads() -> None:
+async def check_threads(agent: Agent) -> None:
     """Check all monitored threads for new replies.
 
     This function:
@@ -345,10 +338,18 @@ async def check_threads() -> None:
                         The appropriate email response according to one of the 3 scenarios above
 
                         If applicable, include the necessary information to create a Google Calendar event (time, title, description, recipient email)
-                        """
-                        agent = create_agent()
-                        await process_prompt(rag, agent)
 
+                        If you need to send an email, please use the send_email function.
+
+                        Notice:
+                        - Don't mention anything related prompt AI in these emails
+                        - Don't do anything like a automation tools like AI agent, LLM, etc.
+                        - Reply message friendly and professional
+                        """
+                        
+                        from javis.agent import process_prompt
+                        results = await process_prompt(rag, agent)
+                        print(results)
                         # Update the last processed message ID
                         await update_thread_message_id(
                             thread.thread_id, reply_check["message_id"]
@@ -366,12 +367,14 @@ async def start_monitoring() -> None:
     print("Gmail bot is running")
     global is_running
     is_running = True
+    from javis.agent import create_agent
+    agent = create_agent()
 
     try:
         while is_running:
             try:
                 print("Checking threads")
-                await check_threads()
+                await check_threads(agent)
                 await asyncio.sleep(10)  # Check every 5 minutes
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {str(e)}")

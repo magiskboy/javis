@@ -4,7 +4,7 @@ from typing import List, Callable
 
 from javis.tools import helpers, internet_search, resume, calendar, gmail
 from javis.tools.email_monitor import send_and_monitor_candidate_email
-from javis.tools.email_monitor_task import check_email_replies, process_candidate_reply
+from javis.tools.email_monitor_task import check_email_replies
 from javis import settings
 from javis.tools.messages import MessageStore
 from pydantic_core import to_jsonable_python
@@ -49,7 +49,6 @@ def create_agent() -> Agent:
             gmail.send_email,
             # Email monitoring
             check_email_replies,
-            process_candidate_reply,
             send_and_monitor_candidate_email,
             # Helpers
             helpers.get_time_now,
