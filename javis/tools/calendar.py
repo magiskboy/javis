@@ -1,21 +1,13 @@
-import os
-from pathlib import Path
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from googleapiclient.discovery import build
 from pydantic import BaseModel
-from javis import settings
-import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 
-# Get the current directory (where calendar.py is located)
-CURRENT_DIR = Path(__file__).parent
-CREDENTIALS_PATH = CURRENT_DIR / "credentials.json"
-TOKEN_PATH = CURRENT_DIR / "token.pickle"
+from javis.helper import get_google_crendential
 
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
+logger = logging.getLogger(__name__)
 
 class CalendarEvent(BaseModel):
     """Model for calendar event details"""
@@ -35,27 +27,7 @@ def get_calendar_service():
     Returns:
         Resource: Google Calendar API service
     """
-    creds = None
-    if TOKEN_PATH.exists():
-        with open(TOKEN_PATH, "rb") as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not CREDENTIALS_PATH.exists():
-                raise FileNotFoundError(
-                    f"Credentials file not found at: {CREDENTIALS_PATH}"
-                )
-
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open(TOKEN_PATH, "wb") as token:
-            pickle.dump(creds, token)
+    creds = get_google_crendential()
 
     service = build("calendar", "v3", credentials=creds)
     return service
@@ -93,6 +65,9 @@ async def create_calendar_event(
         ...     attendees=["john@example.com", "jane@example.com"]
         ... )
     """
+
+    logger.info(f"Creating calendar event: {summary} from {start_time} to {end_time} with timezone {timezone} and attendees {attendees}")
+
     try:
         # Parse the datetime strings
         start_dt = datetime.fromisoformat(start_time)
@@ -136,7 +111,7 @@ async def create_calendar_event(
         )
 
         # Return relevant event details
-        return {
+        response = {
             "event_id": created_event["id"],
             "html_link": created_event["htmlLink"],
             "summary": created_event["summary"],
@@ -144,6 +119,12 @@ async def create_calendar_event(
             "end_time": created_event["end"]["dateTime"],
             "attendees": [a["email"] for a in created_event.get("attendees", [])],
         }
+
+        return f'''
+        I have created a calendar event with the following details:
+        {response}
+        Noted: respond user with html_link of event
+        '''
 
     except Exception as e:
         return {"error": str(e), "status": "failed"}
@@ -154,6 +135,7 @@ async def get_calendar_events(
     to_date: Optional[str] = None,
     days: Optional[int] = None,
     timezone: str = "Asia/Ho_Chi_Minh",
+    user_email: Optional[str] = None,
 ) -> dict:
     """Get a list of calendar events within a specified time range.
 
@@ -166,20 +148,23 @@ async def get_calendar_events(
         to_date: End date/datetime in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
         days: Number of days to fetch events from today
         timezone: Timezone for the events (default: Asia/Ho_Chi_Minh)
+        user_email: Email of the specific user whose calendar to access
 
     Returns:
         dict: List of events with their details or error information
 
     Examples:
-        # Get events between two dates
+        # Get events between two dates for a specific user
         >>> await get_calendar_events(
         ...     from_date="2024-04-20T00:00:00",
-        ...     to_date="2024-04-21T00:00:00"
+        ...     to_date="2024-04-21T00:00:00",
+        ...     user_email="user@example.com"
         ... )
 
-        # Get events for next 7 days
-        >>> await get_calendar_events(days=7)
+        # Get events for next 7 days for a specific user
+        >>> await get_calendar_events(days=7, user_email="user@example.com")
     """
+
     try:
         # Get calendar service
         service = get_calendar_service()
@@ -196,17 +181,20 @@ async def get_calendar_events(
             start_dt = datetime.fromisoformat(from_date)
             end_dt = datetime.fromisoformat(to_date)
         else:
-            start_dt = now
-            end_dt = now
             raise ValueError("Either provide (from_date, to_date) or days parameter")
+
+        logger.info(f"Getting calendar events from {start_dt} to {end_dt} with timezone {timezone}")
+
+        # Prepare API call parameters
+        calendar_id = "primary" if not user_email else user_email
 
         # Call the Calendar API
         events_result = (
             service.events()
             .list(
-                calendarId="primary",
-                timeMin=start_dt.isoformat() + "Z",  # 'Z' indicates UTC time
-                timeMax=end_dt.isoformat() + "Z",
+                calendarId=calendar_id,
+                timeMin=start_dt.astimezone().isoformat(),  # Convert to timezone-aware
+                timeMax=end_dt.astimezone().isoformat(),  # Convert to timezone-aware
                 singleEvents=True,
                 orderBy="startTime",
                 timeZone=timezone,
@@ -217,7 +205,12 @@ async def get_calendar_events(
         events = events_result.get("items", [])
 
         if not events:
-            return {"message": "No events found.", "events": [], "status": "success"}
+            return {
+                "message": "No events found.", 
+                "events": [], 
+                "status": "success",
+                "calendar": calendar_id
+            }
 
         # Format the events
         formatted_events = []
@@ -241,6 +234,7 @@ async def get_calendar_events(
         return {
             "status": "success",
             "events": formatted_events,
+            "calendar": calendar_id,
             "period": {
                 "start": start_dt.isoformat(),
                 "end": end_dt.isoformat(),
