@@ -2,6 +2,7 @@ from typing import List
 import json
 from javis import settings
 from javis.helper import embed_contents, get_database_connection
+from pydantic_ai.messages import ModelMessage
 
 
 class MessageStore:
@@ -69,14 +70,14 @@ class MessageStore:
         """
         await self.connection.execute(query, '-1', user_id, json.dumps(bot_message), json.dumps(bot_content_embedding))
 
-    async def get_messages(self, user_id: str) -> List[any]:
+    async def get_messages(self, user_id: str, prompt: str) -> List[ModelMessage]:
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
         """Retrieve all messages for a specific user.
 
         Args:
             user_id (str): The unique identifier of the user
-
+            prompt (str): The prompt to search for
         Returns:
             List[ModelMessage]: List of ModelMessage objects containing the user's messages
 
@@ -89,13 +90,16 @@ class MessageStore:
                 "Database connection not initialized. Call initialize() first."
             )
 
+        prompt_embedding = embed_contents([prompt])[0]
+        k = 5
+
         query = """
         SELECT user_id, messages 
-        FROM messages 
+        FROM messages
         WHERE user_id = $1
-        ORDER BY created_at ASC
+        ORDER BY content_embeddings <=> $2 LIMIT $3
         """
-        rows = await self.connection.fetch(query, user_id)
+        rows = await self.connection.fetch(query, user_id, json.dumps(prompt_embedding), k)
         messages = []
         if rows:
             for row in rows:

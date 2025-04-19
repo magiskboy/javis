@@ -1,5 +1,4 @@
 from __future__ import annotations as _annotations
-import asyncio
 import asyncpg
 import json
 import logging

@@ -19,9 +19,10 @@ __all__ = [
 
 def create_agent() -> Agent:
     agent = Agent(
-        system_prompt=settings.SYSTEM_PROMPT,
         model=gemini,
+        system_prompt=settings.SYSTEM_PROMPT,
     )
+
 
     register_tools(
         agent,
@@ -89,8 +90,24 @@ async def process_prompt(prompt: str, agent: Agent, user_id: str):
     await messages_store.initialize()
 
     try:
-        messages = await messages_store.get_messages(user_id)
-        result = await agent.run(prompt, message_history=messages)
+        messages = await messages_store.get_messages(user_id, prompt)
+        message_strings = ['\n'.join([p.content for p in m.parts]) for m in messages]
+        message_strings = '\n'.join(message_strings)
+        rag = f"""
+        Prompt: {prompt}
+
+        Here are the information of you:
+        Name: Javis
+        Role: HR Assistant
+        Email: javis@zen8labs.com
+        Phone: +84 812 3456 7890
+        Address: Hanoi, Vietnam
+        Company: Zen8labs
+
+        These are the related history of the conversation:
+        {message_strings}
+        """
+        result = await agent.run(rag, message_history=messages)
         messages = result.new_messages()
         as_python_objects = to_jsonable_python(messages)
         await messages_store.add_messages(user_id, as_python_objects)

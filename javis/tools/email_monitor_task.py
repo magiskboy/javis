@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime, timedelta
 
 from javis.tools.email_base import get_gmail_service, extract_email_content
@@ -42,7 +42,6 @@ async def remove_thread_from_monitor(thread_id: str) -> None:
     """Remove a thread from monitoring."""
     if thread_id in monitored_threads:
         del monitored_threads[thread_id]
-
 
 async def check_email_replies(thread_id: str) -> dict:
     """Check for replies in a specific email thread.

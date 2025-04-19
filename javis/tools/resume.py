@@ -166,6 +166,8 @@ def get_create_interview_schedule_instructions() -> str:
                 - Have candidate specify time zone
                 - Include clear formatting instructions (e.g. "April 18, 10:00-11:00 AM GMT+7")
                 - Set response deadline (24-48 hours)
+                - Content and Subject of email should be provided by you
+                - You should include your information and our company information in the email
 
             2. Calendar Availability Check
 
