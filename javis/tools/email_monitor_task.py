@@ -192,24 +192,20 @@ async def check_email_replies(thread_id: str) -> dict:
         if len(messages) <= 1:
             return {"status": "success", "has_reply": False, "reply_content": None}
 
-        # Get the most recent message (reply)
-        latest_message = messages[-1]
-
         # Get message payload
-        msg = (
-            service.users()
-            .messages()
-            .get(userId="me", id=latest_message["id"])
-            .execute()
-        )
-
-        # Extract message content
-        content = extract_email_content(msg)
-
+        reply_content = ""
+        for message in messages:
+            msg = (
+                service.users().messages().get(userId="me", id=message["id"]).execute()
+            )
+            # Extract message content
+            content = extract_email_content(msg)
+            reply_content += "\n" + content
+        latest_message = messages[-1]
         return {
             "status": "success",
             "has_reply": True,
-            "reply_content": content,
+            "reply_content": reply_content,
             "message_id": latest_message["id"],
             "thread_id": thread_id,
         }
@@ -217,60 +213,6 @@ async def check_email_replies(thread_id: str) -> dict:
     except Exception as e:
         print(f"Error checking email replies: {str(e)}")
         return {"status": "error", "error": str(e)}
-
-
-async def send_confirmation_email(to_email: str, meeting_time: datetime) -> dict:
-    """Send a confirmation email to the candidate after scheduling the interview.
-
-    Args:
-        to_email (str): Candidate's email address
-        meeting_time (datetime): Scheduled meeting time
-
-    Returns:
-        dict: Response from send_email function
-    """
-    subject = "Interview Confirmation"
-    formatted_time = meeting_time.strftime("%A, %B %d, %Y at %I:%M %p")
-    body = f"""Dear Candidate,
-
-Thank you for confirming your interview. We have scheduled the interview for {formatted_time} (Vietnam time).
-
-We look forward to meeting with you. If you need to make any changes, please let us know.
-
-Best regards,
-HR Team"""
-
-    return await send_email(to_email=to_email, subject=subject, body=body)
-
-
-async def send_followup_email(to_email: str, analysis: dict) -> dict:
-    """Send a follow-up email when candidate declines or needs clarification.
-
-    Args:
-        to_email (str): Candidate's email address
-        analysis (dict): AI analysis of candidate's response
-
-    Returns:
-        dict: Response from send_email function
-    """
-    if analysis["suggested_action"] == "request_clarification":
-        subject = "Interview Scheduling - Clarification Needed"
-        body = """Dear Candidate,
-
-Thank you for your response. We would appreciate if you could provide more specific details about your preferred interview time. Please let us know what dates and times work best for you.
-
-Best regards,
-HR Team"""
-    else:
-        subject = "Thank You for Your Response"
-        body = """Dear Candidate,
-
-Thank you for taking the time to respond to our interview invitation. We appreciate your feedback and wish you the best in your future endeavors.
-
-Best regards,
-HR Team"""
-
-    return await send_email(to_email=to_email, subject=subject, body=body)
 
 
 async def check_threads(agent: Agent) -> None:
@@ -282,6 +224,9 @@ async def check_threads(agent: Agent) -> None:
     3. Checks each thread for new replies
     4. Processes any new replies found
     5. Updates the last processed message ID
+
+    Args:
+        agent (Agent): The AI agent to process responses
 
     Raises:
         Exception: If any step in the process fails
@@ -310,7 +255,7 @@ async def check_threads(agent: Agent) -> None:
                         You are a recruitment assistant responsible for reviewing candidate responses regarding their availability for a discussion. Based on the candidate's reply, you need to determine their intent and take the appropriate action as follows:
 
                         1. If the candidate declines to discuss
-                        (e.g., they say they’re not interested, not available, or politely refuse):
+                        (e.g., they say they're not interested, not available, or politely refuse):
                         → Send a thank-you email and wish them well for the future.
 
                         2. If the candidate:
@@ -331,7 +276,7 @@ async def check_threads(agent: Agent) -> None:
 
                         Input:
 
-                        The candidate’s natural response (in English or Vietnamese)
+                        The candidate's natural response (in English or Vietnamese)
 
                         Output:
 
@@ -346,10 +291,12 @@ async def check_threads(agent: Agent) -> None:
                         - Don't do anything like a automation tools like AI agent, LLM, etc.
                         - Reply message friendly and professional
                         """
-                        
+
                         from javis.agent import process_prompt
+
                         results = await process_prompt(rag, agent)
                         print(results)
+
                         # Update the last processed message ID
                         await update_thread_message_id(
                             thread.thread_id, reply_check["message_id"]
@@ -368,6 +315,7 @@ async def start_monitoring() -> None:
     global is_running
     is_running = True
     from javis.agent import create_agent
+
     agent = create_agent()
 
     try:
