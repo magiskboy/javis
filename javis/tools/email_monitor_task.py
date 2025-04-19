@@ -272,7 +272,9 @@ async def check_threads(agent: Agent) -> None:
 
                         Provides a start time without specifying duration
                         (e.g., "I'm free at 10 AM")
-                        → Create a meeting in Google Calendar using the given time (default to 1 hour if no duration is provided), and send a confirmation email to the candidate.
+                        → You should send an email to the candidate to confirm the time and ask for their availability because you need confirmation from candicates.
+
+                        After the candicate confirms, create a meeting in Google Calendar using the given time (default to 1 hour if no duration is provided), and send a confirmation email to the candidate.
 
                         Input:
 
