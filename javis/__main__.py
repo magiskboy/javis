@@ -40,9 +40,17 @@ def run_local():
 
 
 @cli.command()
-def run_telebot():
+def run_bot():
     telegram_bot = TelegramBot(settings.TELEGRAM_BOT_TOKEN)
-    telegram_bot.run()
+    from javis.tools.email_monitor_task import start_monitoring
+
+    async def _inner():
+        await asyncio.gather(
+            start_monitoring(),
+            telegram_bot.run(),
+        )
+
+    asyncio.run(_inner())
 
 
 @cli.command()

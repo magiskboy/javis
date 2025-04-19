@@ -49,5 +49,7 @@ class TelegramBot:
         content = await process_prompt(update.message.text, self.agent, str(user_id))
         await update.message.reply_text(content)
 
-    def run(self):
-        self.app.run_polling(allowed_updates=Update.ALL_TYPES)
+    async def run(self):
+        import asyncio
+        print('Telebot is running')
+        return asyncio.to_thread(self.app.run_polling, allowed_updates=Update.ALL_TYPES)

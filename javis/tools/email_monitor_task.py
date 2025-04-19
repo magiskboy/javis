@@ -200,15 +200,16 @@ async def check_threads() -> None:
 
 async def start_monitoring() -> None:
     """Start the email monitoring background task."""
-    logger.info("Starting email monitoring service")
+    print("Gmail bot is running")
     global is_running
     is_running = True
 
     try:
         while is_running:
             try:
+                print("Checking threads")
                 await check_threads()
-                await asyncio.sleep(300)  # Check every 5 minutes
+                await asyncio.sleep(10)  # Check every 5 minutes
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {str(e)}")
                 await asyncio.sleep(60)  # Wait a bit before retrying on error
