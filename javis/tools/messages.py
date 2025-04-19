@@ -2,6 +2,7 @@ from typing import List
 import json
 from javis import settings
 from javis.helper import embed_contents, get_database_connection
+from pydantic_ai.messages import ModelMessage
 
 
 class MessageStore:
