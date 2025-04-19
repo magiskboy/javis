@@ -1,6 +1,7 @@
 from javis.models.gemini import gemini
 from pydantic_ai import Agent
 from typing import List, Callable
+
 from javis.tools import helpers, internet_search, resume, calendar, gmail
 from javis.tools.email_monitor import send_and_monitor_candidate_email
 from javis.tools.email_monitor_task import check_email_replies, process_candidate_reply
@@ -73,7 +74,7 @@ def register_tools(agent: Agent, tools: List[Callable]):
         add_tool_plain(tool)
 
 
-async def process_prompt(prompt: str, agent: Agent, user_id: str):
+async def process_prompt(prompt: str, agent: Agent, user_id: str = ""):
     """Process a prompt with the agent and store chat history.
 
     Args:
@@ -86,34 +87,33 @@ async def process_prompt(prompt: str, agent: Agent, user_id: str):
     """
 
     # Initialize message store and get existing messages if user_id provided
+
     messages_store = MessageStore()
     await messages_store.initialize()
 
-    try:
-        messages = await messages_store.get_messages(user_id, prompt)
-        message_strings = ['\n'.join([p.content for p in m.parts]) for m in messages]
-        message_strings = '\n'.join(message_strings)
-        rag = f"""
-        Prompt: {prompt}
+    messages = await messages_store.get_messages(user_id, prompt)
+    message_strings = ['\n'.join([p.content for p in m.parts]) for m in messages]
+    message_strings = '\n'.join(message_strings)
+    rag = f"""
+    Prompt: {prompt}
 
-        Here are the information of you:
-        Name: Javis
-        Role: HR Assistant
-        Email: javis@zen8labs.com
-        Phone: +84 812 3456 7890
-        Address: Hanoi, Vietnam
-        Company: Zen8labs
+    Here are the information of you:
+    Name: Javis
+    Role: HR Assistant
+    Email: javis@zen8labs.com
+    Phone: +84 812 3456 7890
+    Address: Hanoi, Vietnam
+    Company: Zen8labs
 
-        These are the related history of the conversation:
-        {message_strings}
-        """
-        result = await agent.run(rag, message_history=messages)
-        messages = result.new_messages()
-        as_python_objects = to_jsonable_python(messages)
-        await messages_store.add_messages(user_id, as_python_objects)
+    These are the related history of the conversation:
+    {message_strings}
+    """
+    result = await agent.run(rag, message_history=messages)
 
-    finally:
-        await messages_store.close()
+    messages = result.new_messages()
+    as_python_objects = to_jsonable_python(messages)
+    await messages_store.add_messages(user_id, as_python_objects)
+    await messages_store.close()
 
     return result_response(result)
 

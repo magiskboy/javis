@@ -12,7 +12,6 @@ from javis.tools.messages import MessageStore
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
 
 class TelegramBot:
     def __init__(self, token: str):
@@ -24,8 +23,16 @@ class TelegramBot:
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)
         )
         self.app.add_handler(CommandHandler("reset", self.handle_reset))
+        self.app.add_handler(CommandHandler("start", self.start))
         self.agent = create_agent()
         self.message_store = MessageStore()
+
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a message when the command /start is issued."""
+        user = update.effective_user
+        await update.message.reply_html(
+            f"Hi {user.mention_html()}! I'm your HR assistant. How can I help you today?"
+        )
 
     async def handle_reset(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /reset command by deleting user's message history"""

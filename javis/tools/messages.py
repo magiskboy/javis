@@ -2,7 +2,6 @@ from typing import List
 import json
 from javis import settings
 from javis.helper import embed_contents, get_database_connection
-from pydantic_ai.messages import ModelMessage
 
 
 class MessageStore:
@@ -53,6 +52,22 @@ class MessageStore:
             )
 
         user_message, bot_message = messages[0], messages[-1]
+
+        user_content = "\n".join([part["content"] for part in user_message["parts"] if part['part_kind'] == 'user-prompt'])
+        bot_content = "\n".join([part["content"] for part in bot_message["parts"] if part['part_kind'] == 'assistant-prompt'])
+        [user_content_embedding, bot_content_embedding] = embed_contents([user_content, bot_content])
+
+        query = """
+        INSERT INTO messages (user_id, for_user_id, messages, content_embeddings) 
+        VALUES ($1, $2, $3, $4)
+        """
+        await self.connection.execute(query, user_id, '-1', json.dumps(user_message), json.dumps(user_content_embedding))
+
+        query = """
+        INSERT INTO messages (user_id, for_user_id, messages, content_embeddings) 
+        VALUES ($1, $2, $3, $4)
+        """
+        await self.connection.execute(query, '-1', user_id, json.dumps(bot_message), json.dumps(bot_content_embedding))
 
         user_content = "\n".join([part["content"] for part in user_message["parts"] if part['part_kind'] == 'user-prompt'])
         bot_content = "\n".join([part["content"] for part in bot_message["parts"] if part['part_kind'] == 'assistant-prompt'])

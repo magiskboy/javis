@@ -12,7 +12,7 @@ async def get_database_connection() -> asyncpg.Connection:
         port=settings.DB_PORT,
         user=settings.DB_USER,
         password=settings.DB_PASSWORD,
-        database=settings.DB_NAME
+        database=settings.DB_NAME,
     )
 
 
@@ -32,14 +32,11 @@ def get_google_crendential():
     Returns:
         Resource: Google Calendar API service
     """
-    
+
     CREDENTIALS_PATH = settings.DATA_DIR / "credentials.json"
     TOKEN_PATH = settings.DATA_DIR / "token.pickle"
 
-    SCOPES = [
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/gmail.send"
-    ]
+    SCOPES = ["https://www.googleapis.com/auth/calendar", "https://mail.google.com/"]
 
     creds = None
     if TOKEN_PATH.exists():
