@@ -5,6 +5,7 @@ import base64
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+<<<<<<< Updated upstream
 import pickle
 from pathlib import Path
 
@@ -15,6 +16,9 @@ TOKEN_PATH = CURRENT_DIR / "token.pickle"
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+=======
+from javis.helper import get_google_crendential
+>>>>>>> Stashed changes
 
 
 def get_gmail_service():
@@ -118,10 +122,16 @@ async def send_email(
                 .execute()
             )
 
+            # Store the thread ID for monitoring replies
+            thread_id = sent_message.get("threadId")
+            from javis.tools.email_monitor_task import add_thread_to_monitor
+
+            await add_thread_to_monitor(thread_id, to_email)
+
             return {
                 "status": "success",
                 "message_id": sent_message["id"],
-                "thread_id": sent_message.get("threadId"),
+                "thread_id": thread_id,
                 "label_ids": sent_message.get("labelIds", []),
                 "recipient": to_email,
                 "subject": subject,
